@@ -28,8 +28,8 @@ class Scene {
 	cv::VideoCapture cap;
 	cv::Mat frame;
 
-	void drawBackground();
-	void drawUnityChan();
+	void drawBackground(const cv::Mat& frame);
+	void drawUnityChan(glm::vec3 pos);
 	
 public:
 	Scene();

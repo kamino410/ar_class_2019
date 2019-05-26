@@ -68,9 +68,9 @@ void setupBackground(GLSLProgramWrapper*& pro, Object& obj, int width, int heigh
 	}
 }
 
-void setupObject(GLSLProgramWrapper*& pro, Object& obj, std::string filename) {
+void setupObject(GLSLProgramWrapper*& pro, Object& obj, std::string objfile, std::string texturefile, float scale) {
 	std::string warn, err;
-	bool res = tinyobj::LoadObj(&obj.attr, &obj.shapes, &obj.materials, &warn, &err, filename.c_str());
+	bool res = tinyobj::LoadObj(&obj.attr, &obj.shapes, &obj.materials, &warn, &err, objfile.c_str());
 	if (!warn.empty()) {
 		std::cerr << warn << std::endl;
 	}
@@ -79,14 +79,15 @@ void setupObject(GLSLProgramWrapper*& pro, Object& obj, std::string filename) {
 		exit(1);
 	}
 
-	std::cout << "verts.size() norms.size() : " << obj.attr.vertices.size() << " " << obj.attr.normals.size() << " " << std::endl;
-	std::cout << "shape.size() : " << obj.shapes.size() << std::endl;
+	std::cout << objfile << std::endl;
+	std::cout << "  verts.size() norms.size() : " << obj.attr.vertices.size() << " " << obj.attr.normals.size() << " " << std::endl;
+	std::cout << "  shape.size() : " << obj.shapes.size() << std::endl;
 
 	{
 		std::vector<glm::vec3> verts;
 		std::vector<glm::vec2> texs;
 		for (const auto& shape : obj.shapes) {
-			std::cout << shape.name << std::endl;
+			std::cout << "  " << shape.name << std::endl;
 
 			size_t index_offset = 0;
 			for (size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++) {
@@ -95,9 +96,9 @@ void setupObject(GLSLProgramWrapper*& pro, Object& obj, std::string filename) {
 					for (size_t v = 0; v < 3; v++) {
 						tinyobj::index_t idx = shape.mesh.indices[index_offset + v];
 
-						float vx = 0.01 * obj.attr.vertices[3 * idx.vertex_index + 0];
-						float vy = 0.01 * obj.attr.vertices[3 * idx.vertex_index + 1];
-						float vz = 0.01 * obj.attr.vertices[3 * idx.vertex_index + 2];
+						float vx = scale * obj.attr.vertices[3 * idx.vertex_index + 0];
+						float vy = scale * obj.attr.vertices[3 * idx.vertex_index + 1];
+						float vz = scale * obj.attr.vertices[3 * idx.vertex_index + 2];
 
 						//float nx = obj.attr.normals[3 * idx.normal_index + 0];
 						//float ny = obj.attr.normals[3 * idx.normal_index + 1];
@@ -142,7 +143,7 @@ void setupObject(GLSLProgramWrapper*& pro, Object& obj, std::string filename) {
 		glBindVertexArray(0);
 	}
 	{
-		cv::Mat img = cv::imread("utc_all2.png");
+		cv::Mat img = cv::imread(texturefile);
 		cv::cvtColor(img, img, cv::COLOR_BGR2RGB);
 		cv::flip(img, img, 0);
 		glActiveTexture(GL_TEXTURE1);
@@ -193,27 +194,30 @@ void Scene::preProcess() {
 	std::cout << "Camera Resolution : " << frame.cols << " x " << frame.rows << std::endl;
 
 	setupBackground(backPro, backObj, frame.cols, frame.rows);
-	setupObject(objPro, unityChan, "sd_unitychan.obj");
-	//setupObject(objPro, unityChan, "cube.obj");
+	setupObject(objPro, unityChan, "sd_unitychan.obj", "utc_all2.png", 0.01f);
 }
 
 void Scene::draw(GLFWwindow* window) {
+	if (cap.read(frame)) {
+		cv::imshow("Test", frame);
+		cv::waitKey(1);
+	}
+
+	// TODO
+	// Insert image processing here
+
 	glViewport(0, 0, WIDTH, HEIGHT);
 	glClearColor(0.5, 0.5, 0.5, 0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	drawBackground();
-	drawUnityChan();
+	drawBackground(frame);
+	drawUnityChan(glm::vec3(0, -0.5, -1.5));
 
 	glfwSwapBuffers(window);
 	glfwPollEvents();
 }
 
-void Scene::drawBackground() {
-	if (cap.read(frame)) {
-		cv::imshow("Test", frame);
-		cv::waitKey(1);
-	}
+void Scene::drawBackground(const cv::Mat &frame) {
 	glDisable(GL_DEPTH_TEST);
 
 	glBindTexture(GL_TEXTURE_RECTANGLE, backObj.tbo);
@@ -233,11 +237,11 @@ void Scene::drawBackground() {
 	glDrawElements(GL_TRIANGLES, backObj.elemCount, GL_UNSIGNED_INT, 0);
 }
 
-void Scene::drawUnityChan() {
+void Scene::drawUnityChan(glm::vec3 pos) {
 	glEnable(GL_DEPTH_TEST);
 
 	objPro->enable();
-	glm::mat4 modelMat = glm::translate(glm::identity<glm::mat4>(), glm::vec3(0, -0.5, -1.5));
+	glm::mat4 modelMat = glm::translate(glm::identity<glm::mat4>(), pos);
 	glm::mat4 viewMat = glm::lookAt(glm::vec3(0, 0, 0), glm::vec3(0, 0, -1), glm::vec3(0, 1, 0));
 	glm::mat4 projMat = glm::perspective(glm::radians(60.0f), 16.0f / 9, 0.1f, 10.0f);
 	objPro->setUniform("mvp", projMat * viewMat * modelMat);
@@ -246,9 +250,6 @@ void Scene::drawUnityChan() {
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, unityChan.tbo);
 
-	//glBindVertexArray(backObj.vao);
-	//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, backObj.eao);
-	//glDrawElements(GL_TRIANGLES, backObj.elemCount, GL_UNSIGNED_INT, 0);
 	glBindVertexArray(unityChan.vao);
 	glDrawArrays(GL_TRIANGLES, 0, unityChan.elemCount);
 }
