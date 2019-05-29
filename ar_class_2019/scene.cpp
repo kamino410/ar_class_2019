@@ -87,92 +87,107 @@ void setupObject(GLSLProgramWrapper*& pro, Object& obj, std::string objfile, flo
 	std::cout << objfile << std::endl;
 	std::cout << "  verts.size() norms.size() : " << obj.attr.vertices.size() << " " << obj.attr.normals.size() << " " << std::endl;
 	std::cout << "  shape.size() : " << obj.shapes.size() << std::endl;
-	{
-		for (const auto& mat : obj.materials) {
-			cv::Mat img = cv::imread(mat.diffuse_texname);
-			cv::cvtColor(img, img, cv::COLOR_BGR2RGB);
-			cv::flip(img, img, 0);
+	std::cout << "  materials.size() : " << obj.materials.size() << std::endl;
 
-			glActiveTexture(GL_TEXTURE1);
-			GLuint tbo;
-			glGenTextures(1, &tbo);
-			glBindTexture(GL_TEXTURE_2D, tbo);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, img.cols, img.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, img.data);
-			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-			glBindTexture(GL_TEXTURE_2D, 0);
+	std::cout << "  Loading shapes ..." << std::endl;
+	std::vector<glm::vec3> verts;
+	std::vector<glm::vec2> texs;
+	for (const auto& shape : obj.shapes) {
+		std::cout << "    " << shape.name << " " << shape.mesh.num_face_vertices.size();
 
-			obj.tbos.push_back(tbo);
+		if (shape.mesh.num_face_vertices.size() == 0) {
+			std::cout << " : skip (no meshes)" << std::endl;
+			continue;
 		}
 
-		std::vector<glm::vec3> verts;
-		std::vector<glm::vec2> texs;
-		for (const auto& shape : obj.shapes) {
-			for (size_t i = 1; i < shape.mesh.material_ids.size(); i++) {
-				if (shape.mesh.material_ids[0] != shape.mesh.material_ids[i]) {
-					std::cerr << "Shapes must have a uniform material" << std::endl;
-					exit(1);
-				}
+		bool flag = false;
+		for (size_t i = 1; i < shape.mesh.material_ids.size(); i++) {
+			if (shape.mesh.material_ids[0] != shape.mesh.material_ids[i]) {
+				std::cout << " : skip (material not uniformed)" << std::endl;
+				flag = true;
+				break;
 			}
-
-			std::cout << "  " << shape.name << " --- " << obj.materials[shape.mesh.material_ids[0]].diffuse_texname << std::endl;
-
-			Part part;
-			size_t index_offset = 0;
-			for (size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++) {
-				int num_vertices = shape.mesh.num_face_vertices[f];
-				if (num_vertices == 3) {
-					for (size_t v = 0; v < 3; v++) {
-						tinyobj::index_t idx = shape.mesh.indices[index_offset + v];
-
-						float vx = scale * obj.attr.vertices[3 * idx.vertex_index + 0];
-						float vy = scale * obj.attr.vertices[3 * idx.vertex_index + 1];
-						float vz = scale * obj.attr.vertices[3 * idx.vertex_index + 2];
-
-						//float nx = obj.attr.normals[3 * idx.normal_index + 0];
-						//float ny = obj.attr.normals[3 * idx.normal_index + 1];
-						//float nz = obj.attr.normals[3 * idx.normal_index + 2];
-
-						tinyobj::real_t tx =
-							obj.attr.texcoords[2 * idx.texcoord_index + 0];
-						tinyobj::real_t ty =
-							obj.attr.texcoords[2 * idx.texcoord_index + 1];
-
-						verts.push_back(glm::vec3(vx, vy, vz));
-						texs.push_back(glm::vec2(tx, ty));
-					}
-				}
-				index_offset += num_vertices;
-			}
-
-			glGenBuffers(2, part.vaaos);
-			glBindBuffer(GL_ARRAY_BUFFER, part.vaaos[0]);
-			glBufferData(GL_ARRAY_BUFFER, 3 * verts.size() * sizeof(GLfloat), verts.data(), GL_STATIC_DRAW);
-			glBindBuffer(GL_ARRAY_BUFFER, part.vaaos[1]);
-			glBufferData(GL_ARRAY_BUFFER, 2 * texs.size() * sizeof(GLfloat), texs.data(), GL_STATIC_DRAW);
-
-			part.elemCount = verts.size();
-
-			glGenVertexArrays(1, &part.vao);
-			glBindVertexArray(part.vao);
-
-			GLint posLoc = pro->getAttribLocation("VertexPosition");
-			glEnableVertexAttribArray(posLoc);
-			glBindBuffer(GL_ARRAY_BUFFER, part.vaaos[0]);
-			glVertexAttribPointer(posLoc, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte*)NULL);
-
-			GLint texLoc = pro->getAttribLocation("VertexTex");
-			glEnableVertexAttribArray(texLoc);
-			glBindBuffer(GL_ARRAY_BUFFER, part.vaaos[1]);
-			glVertexAttribPointer(texLoc, 2, GL_FLOAT, GL_FALSE, 0, (GLubyte*)NULL);
-
-			glBindBuffer(GL_ARRAY_BUFFER, 0);
-			glBindVertexArray(0);
-
-			part.tex_id = shape.mesh.material_ids[0];
-
-			obj.parts.push_back(part);
 		}
+		if (flag) {
+			continue;
+		}
+
+		std::cout << " " << obj.materials[shape.mesh.material_ids[0]].diffuse_texname << std::endl;
+
+		Part part;
+		size_t index_offset = 0;
+		for (size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++) {
+			int num_vertices = shape.mesh.num_face_vertices[f];
+			if (num_vertices == 3) {
+				for (size_t v = 0; v < 3; v++) {
+					tinyobj::index_t idx = shape.mesh.indices[index_offset + v];
+
+					float vx = scale * obj.attr.vertices[3 * idx.vertex_index + 0];
+					float vy = scale * obj.attr.vertices[3 * idx.vertex_index + 1];
+					float vz = scale * obj.attr.vertices[3 * idx.vertex_index + 2];
+
+					//float nx = obj.attr.normals[3 * idx.normal_index + 0];
+					//float ny = obj.attr.normals[3 * idx.normal_index + 1];
+					//float nz = obj.attr.normals[3 * idx.normal_index + 2];
+
+					tinyobj::real_t tx =
+						obj.attr.texcoords[2 * idx.texcoord_index + 0];
+					tinyobj::real_t ty =
+						obj.attr.texcoords[2 * idx.texcoord_index + 1];
+
+					verts.push_back(glm::vec3(vx, vy, vz));
+					texs.push_back(glm::vec2(tx, ty));
+				}
+			}
+			index_offset += num_vertices;
+		}
+
+		glGenBuffers(2, part.vaaos);
+		glBindBuffer(GL_ARRAY_BUFFER, part.vaaos[0]);
+		glBufferData(GL_ARRAY_BUFFER, 3 * verts.size() * sizeof(GLfloat), verts.data(), GL_STATIC_DRAW);
+		glBindBuffer(GL_ARRAY_BUFFER, part.vaaos[1]);
+		glBufferData(GL_ARRAY_BUFFER, 2 * texs.size() * sizeof(GLfloat), texs.data(), GL_STATIC_DRAW);
+
+		part.elemCount = verts.size();
+
+		glGenVertexArrays(1, &part.vao);
+		glBindVertexArray(part.vao);
+
+		GLint posLoc = pro->getAttribLocation("VertexPosition");
+		glEnableVertexAttribArray(posLoc);
+		glBindBuffer(GL_ARRAY_BUFFER, part.vaaos[0]);
+		glVertexAttribPointer(posLoc, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte*)NULL);
+
+		GLint texLoc = pro->getAttribLocation("VertexTex");
+		glEnableVertexAttribArray(texLoc);
+		glBindBuffer(GL_ARRAY_BUFFER, part.vaaos[1]);
+		glVertexAttribPointer(texLoc, 2, GL_FLOAT, GL_FALSE, 0, (GLubyte*)NULL);
+
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glBindVertexArray(0);
+
+		part.tex_id = shape.mesh.material_ids[0];
+
+		obj.parts.push_back(part);
+	}
+
+	std::cout << "  Loading textures ..." << std::endl;
+	for (const auto& mat : obj.materials) {
+		std::cout << "  " << mat.diffuse_texname << std::endl;
+		cv::Mat img = cv::imread(mat.diffuse_texname);
+		cv::cvtColor(img, img, cv::COLOR_BGR2RGB);
+		cv::flip(img, img, 0);
+
+		glActiveTexture(GL_TEXTURE1);
+		GLuint tbo;
+		glGenTextures(1, &tbo);
+		glBindTexture(GL_TEXTURE_2D, tbo);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, img.cols, img.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, img.data);
+		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glBindTexture(GL_TEXTURE_2D, 0);
+
+		obj.tbos.push_back(tbo);
 	}
 }
 
@@ -184,7 +199,7 @@ int Scene::getheight() { return HEIGHT; }
 
 int Scene::getwidth() { return WIDTH; }
 
-void Scene::keycallback(GLFWwindow* window, int key, int scancode, int action,
+void Scene::keycallback(GLFWwindow * window, int key, int scancode, int action,
 	int mods) {
 	if (action == GLFW_PRESS || action == GLFW_REPEAT) {
 		if (key == GLFW_KEY_ESCAPE) {
@@ -217,7 +232,7 @@ void Scene::preProcess() {
 	setupObject(objPro, unityChan, "sd_unitychan.obj", 0.01f);
 }
 
-void Scene::draw(GLFWwindow* window) {
+void Scene::draw(GLFWwindow * window) {
 	if (cap.read(frame)) {
 		cv::imshow("Test", frame);
 		cv::waitKey(1);
