@@ -4,10 +4,16 @@
 #include <string>
 #include <vector>
 #include <map>
+#include "PoseEstimation.h"
+#include "MarkerTracker.h"
+
 
 #define WIDTH 960
 #define HEIGHT WIDTH*9/16
 #define HEIGHT_CROP_RATIO 2.0/16
+#define kMarkerSize  0.3// = 0.048[m]
+#define xscale 1.3
+#define yscale 1.3
 
 void setupBackground(GLSLProgramWrapper*& pro, Object& obj, int width, int height) {
 	float verts[3 * 4];
@@ -204,14 +210,40 @@ void Scene::draw(GLFWwindow* window) {
 	}
 
 	// TODO
-	// Insert image processing here
+	// start image processing
+	//const double kMarkerSize = 0.3;// 0.048; // [m]
+	MarkerTracker markerTracker(kMarkerSize);
+	glm::vec3 markerpos(0, -0.5, -1.5);
+	glm::mat4 markerMat(1.0);
+	std::vector<Marker> markers;
+	markerTracker.findMarker( frame, markers );
+	for(int i=0; i<markers.size(); i++){
+		const int code =markers[i].code;
+		for (int x=0; x<4; ++x){
+	  		for (int y=0; y<4; ++y){
+				markerMat[x][y] = markers[i].resultMatrix[y*4+x];
+	  		}
+		}
+		// scaling
+		markerMat[3][0] = xscale * markerMat[3][0] ;
+		markerMat[3][1] = yscale * markerMat[3][1] ;
+	  	// x-axis inversion
+	  	for (int x=0; x<4; ++x){
+			markerMat[x][0] = -markerMat[x][0];
+	  	}
+
+		markerpos = glm::vec3(markerMat[3][0], markerMat[3][1], markerMat[3][2]);
+	}
+
+    // fin image processing
+
 
 	glViewport(0, 0, WIDTH, HEIGHT);
 	glClearColor(0.5, 0.5, 0.5, 0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	drawBackground(frame);
-	drawUnityChan(glm::vec3(0, -0.5, -1.5));
+	drawUnityChan(markerpos);
 
 	glfwSwapBuffers(window);
 	glfwPollEvents();

@@ -142,14 +142,15 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\lib\opencv-4.0.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\hiro\Documents\packages\opencv\build\include;C:\lib\opencv-4.0.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>C:\lib\opencv-4.1.0\x64\vc15\lib\opencv_world410.lib;C:\lib\opencv-4.1.0\x64\vc15\lib\opencv_img_hash410.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>C:\lib\opencv-4.1.0\x64\vc15\lib\opencv_world410.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Users\hiro\Documents\packages\opencv\build\x64\vc15;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
       <Command>xcopy $(SolutionDir)models\* $(TargetDir) /Y
@@ -159,6 +160,8 @@ xcopy $(SolutionDir)shaders\* $(TargetDir) /Y</Command>
   <ItemGroup>
     <ClCompile Include="ar_class_2019.cpp" />
     <ClCompile Include="gl_program_wrapper.cpp" />
+    <ClCompile Include="MarkerTracker.cpp" />
+    <ClCompile Include="PoseEstimation.cpp" />
     <ClCompile Include="scene.cpp" />
     <ClCompile Include="tinyobjloader.cpp" />
   </ItemGroup>
