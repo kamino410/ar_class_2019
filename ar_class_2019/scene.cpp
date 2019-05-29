@@ -26,45 +26,50 @@ void setupBackground(GLSLProgramWrapper*& pro, Object& obj, int width, int heigh
 	indexes[0] = 0, indexes[1] = 1, indexes[2] = 2;
 	indexes[3] = 0, indexes[4] = 3, indexes[5] = 2;
 
+	Part part;
 	{
-		glGenBuffers(2, obj.vaaos);
-		glBindBuffer(GL_ARRAY_BUFFER, obj.vaaos[0]);
+		glGenBuffers(2, part.vaaos);
+		glBindBuffer(GL_ARRAY_BUFFER, part.vaaos[0]);
 		glBufferData(GL_ARRAY_BUFFER, 3 * 4 * sizeof(GLfloat), verts, GL_STATIC_DRAW);
-		glBindBuffer(GL_ARRAY_BUFFER, obj.vaaos[1]);
+		glBindBuffer(GL_ARRAY_BUFFER, part.vaaos[1]);
 		glBufferData(GL_ARRAY_BUFFER, 2 * 4 * sizeof(GLfloat), texs, GL_STATIC_DRAW);
 
-		glGenBuffers(1, &obj.eao);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, obj.eao);
+		glGenBuffers(1, &part.eao);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, part.eao);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * 2 * sizeof(GLuint), indexes, GL_STATIC_DRAW);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-		obj.elemCount = 6;
+		part.elemCount = 6;
 	}
 
 	{
-		glGenVertexArrays(1, &obj.vao);
-		glBindVertexArray(obj.vao);
+		glGenVertexArrays(1, &part.vao);
+		glBindVertexArray(part.vao);
 
 		GLint posLoc = pro->getAttribLocation("VertexPosition");
 		glEnableVertexAttribArray(posLoc);
-		glBindBuffer(GL_ARRAY_BUFFER, obj.vaaos[0]);
+		glBindBuffer(GL_ARRAY_BUFFER, part.vaaos[0]);
 		glVertexAttribPointer(posLoc, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte*)NULL);
 
 		GLint texLoc = pro->getAttribLocation("VertexTex");
 		glEnableVertexAttribArray(texLoc);
-		glBindBuffer(GL_ARRAY_BUFFER, obj.vaaos[1]);
+		glBindBuffer(GL_ARRAY_BUFFER, part.vaaos[1]);
 		glVertexAttribPointer(texLoc, 2, GL_FLOAT, GL_FALSE, 0, (GLubyte*)NULL);
 
-		glGenTextures(1, &obj.tbo);
-		glBindTexture(GL_TEXTURE_RECTANGLE, obj.tbo);
+		GLuint tbo;
+		glGenTextures(1, &tbo);
+		glBindTexture(GL_TEXTURE_RECTANGLE, tbo);
 		glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_RGB, width, height, 0, GL_BGR, GL_UNSIGNED_BYTE, NULL);
 		glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
 		glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 		glBindTexture(GL_TEXTURE_RECTANGLE, 0);
+		obj.tbos.push_back(tbo);
 
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		glBindVertexArray(0);
+
+		obj.parts.push_back(part);
 	}
 }
 
@@ -81,13 +86,37 @@ void setupObject(GLSLProgramWrapper*& pro, Object& obj, std::string filename) {
 
 	std::cout << "verts.size() norms.size() : " << obj.attr.vertices.size() << " " << obj.attr.normals.size() << " " << std::endl;
 	std::cout << "shape.size() : " << obj.shapes.size() << std::endl;
-
 	{
+		for (const auto& mat : obj.materials) {
+			cv::Mat img = cv::imread(mat.diffuse_texname);
+			cv::cvtColor(img, img, cv::COLOR_BGR2RGB);
+			cv::flip(img, img, 0);
+
+			glActiveTexture(GL_TEXTURE1);
+			GLuint tbo;
+			glGenTextures(1, &tbo);
+			glBindTexture(GL_TEXTURE_2D, tbo);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, img.cols, img.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, img.data);
+			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glBindTexture(GL_TEXTURE_2D, 0);
+
+			obj.tbos.push_back(tbo);
+		}
+
 		std::vector<glm::vec3> verts;
 		std::vector<glm::vec2> texs;
 		for (const auto& shape : obj.shapes) {
-			std::cout << shape.name << std::endl;
+			for (size_t i = 1; i < shape.mesh.material_ids.size(); i++) {
+				if (shape.mesh.material_ids[0] != shape.mesh.material_ids[i]) {
+					std::cerr << "Shapes must have a uniform material" << std::endl;
+					exit(1);
+				}
+			}
 
+			std::cout << shape.name << " --- " << obj.materials[shape.mesh.material_ids[0]].diffuse_texname << std::endl;
+
+			Part part;
 			size_t index_offset = 0;
 			for (size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++) {
 				int num_vertices = shape.mesh.num_face_vertices[f];
@@ -114,44 +143,35 @@ void setupObject(GLSLProgramWrapper*& pro, Object& obj, std::string filename) {
 				}
 				index_offset += num_vertices;
 			}
+
+			glGenBuffers(2, part.vaaos);
+			glBindBuffer(GL_ARRAY_BUFFER, part.vaaos[0]);
+			glBufferData(GL_ARRAY_BUFFER, 3 * verts.size() * sizeof(GLfloat), verts.data(), GL_STATIC_DRAW);
+			glBindBuffer(GL_ARRAY_BUFFER, part.vaaos[1]);
+			glBufferData(GL_ARRAY_BUFFER, 2 * texs.size() * sizeof(GLfloat), texs.data(), GL_STATIC_DRAW);
+
+			part.elemCount = verts.size();
+
+			glGenVertexArrays(1, &part.vao);
+			glBindVertexArray(part.vao);
+
+			GLint posLoc = pro->getAttribLocation("VertexPosition");
+			glEnableVertexAttribArray(posLoc);
+			glBindBuffer(GL_ARRAY_BUFFER, part.vaaos[0]);
+			glVertexAttribPointer(posLoc, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte*)NULL);
+
+			GLint texLoc = pro->getAttribLocation("VertexTex");
+			glEnableVertexAttribArray(texLoc);
+			glBindBuffer(GL_ARRAY_BUFFER, part.vaaos[1]);
+			glVertexAttribPointer(texLoc, 2, GL_FLOAT, GL_FALSE, 0, (GLubyte*)NULL);
+
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
+			glBindVertexArray(0);
+
+			part.tex_id = shape.mesh.material_ids[0];
+
+			obj.parts.push_back(part);
 		}
-
-		glGenBuffers(2, obj.vaaos);
-		glBindBuffer(GL_ARRAY_BUFFER, obj.vaaos[0]);
-		glBufferData(GL_ARRAY_BUFFER, 3 * verts.size() * sizeof(GLfloat), verts.data(), GL_STATIC_DRAW);
-		glBindBuffer(GL_ARRAY_BUFFER, obj.vaaos[1]);
-		glBufferData(GL_ARRAY_BUFFER, 2 * texs.size() * sizeof(GLfloat), texs.data(), GL_STATIC_DRAW);
-
-		obj.elemCount = verts.size();
-	}
-	{
-		glGenVertexArrays(1, &obj.vao);
-		glBindVertexArray(obj.vao);
-
-		GLint posLoc = pro->getAttribLocation("VertexPosition");
-		glEnableVertexAttribArray(posLoc);
-		glBindBuffer(GL_ARRAY_BUFFER, obj.vaaos[0]);
-		glVertexAttribPointer(posLoc, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte*)NULL);
-
-		GLint texLoc = pro->getAttribLocation("VertexTex");
-		glEnableVertexAttribArray(texLoc);
-		glBindBuffer(GL_ARRAY_BUFFER, obj.vaaos[1]);
-		glVertexAttribPointer(texLoc, 2, GL_FLOAT, GL_FALSE, 0, (GLubyte*)NULL);
-
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		glBindVertexArray(0);
-	}
-	{
-		cv::Mat img = cv::imread("utc_all2.png");
-		cv::cvtColor(img, img, cv::COLOR_BGR2RGB);
-		cv::flip(img, img, 0);
-		glActiveTexture(GL_TEXTURE1);
-		glGenTextures(1, &obj.tbo);
-		glBindTexture(GL_TEXTURE_2D, obj.tbo);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, img.cols, img.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, img.data);
-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glBindTexture(GL_TEXTURE_2D, 0);
 	}
 }
 
@@ -214,9 +234,10 @@ void Scene::drawBackground() {
 		cv::imshow("Test", frame);
 		cv::waitKey(1);
 	}
+
 	glDisable(GL_DEPTH_TEST);
 
-	glBindTexture(GL_TEXTURE_RECTANGLE, backObj.tbo);
+	glBindTexture(GL_TEXTURE_RECTANGLE, backObj.tbos[0]);
 	glTexSubImage2D(GL_TEXTURE_RECTANGLE, 0, 0, 0, frame.cols, frame.rows, GL_BGR, GL_UNSIGNED_BYTE, frame.data);
 
 	backPro->enable();
@@ -226,11 +247,11 @@ void Scene::drawBackground() {
 
 	backPro->setUniform("TexImg", 0);
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_RECTANGLE, backObj.tbo);
+	glBindTexture(GL_TEXTURE_RECTANGLE, backObj.tbos[0]);
 
-	glBindVertexArray(backObj.vao);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, backObj.eao);
-	glDrawElements(GL_TRIANGLES, backObj.elemCount, GL_UNSIGNED_INT, 0);
+	glBindVertexArray(backObj.parts[0].vao);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, backObj.parts[0].eao);
+	glDrawElements(GL_TRIANGLES, backObj.parts[0].elemCount, GL_UNSIGNED_INT, 0);
 }
 
 void Scene::drawUnityChan() {
@@ -244,11 +265,14 @@ void Scene::drawUnityChan() {
 
 	objPro->setUniform("TexImg", 1);
 	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, unityChan.tbo);
 
-	//glBindVertexArray(backObj.vao);
-	//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, backObj.eao);
-	//glDrawElements(GL_TRIANGLES, backObj.elemCount, GL_UNSIGNED_INT, 0);
-	glBindVertexArray(unityChan.vao);
-	glDrawArrays(GL_TRIANGLES, 0, unityChan.elemCount);
+	for (auto& part : unityChan.parts) {
+		glBindTexture(GL_TEXTURE_2D, unityChan.tbos[part.tex_id]);
+
+		//glBindVertexArray(backObj.vao);
+		//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, backObj.eao);
+		//glDrawElements(GL_TRIANGLES, backObj.elemCount, GL_UNSIGNED_INT, 0);
+		glBindVertexArray(part.vao);
+		glDrawArrays(GL_TRIANGLES, 0, part.elemCount);
+	}
 }
