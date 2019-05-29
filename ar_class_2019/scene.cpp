@@ -73,7 +73,7 @@ void setupBackground(GLSLProgramWrapper*& pro, Object& obj, int width, int heigh
 	}
 }
 
-void setupObject(GLSLProgramWrapper*& pro, Object& obj, std::string objfile, std::string texturefile, float scale) {
+void setupObject(GLSLProgramWrapper*& pro, Object& obj, std::string objfile, float scale) {
 	std::string warn, err;
 	bool res = tinyobj::LoadObj(&obj.attr, &obj.shapes, &obj.materials, &warn, &err, objfile.c_str());
 	if (!warn.empty()) {
@@ -214,7 +214,7 @@ void Scene::preProcess() {
 	std::cout << "Camera Resolution : " << frame.cols << " x " << frame.rows << std::endl;
 
 	setupBackground(backPro, backObj, frame.cols, frame.rows);
-	setupObject(objPro, unityChan, "sd_unitychan.obj", "utc_all2.png", 0.01f);
+	setupObject(objPro, unityChan, "sd_unitychan.obj", 0.01f);
 }
 
 void Scene::draw(GLFWwindow* window) {
