@@ -33,7 +33,7 @@ class Scene {
 	cv::Mat frame, img1, img2, img3, img4;
 
 	void drawBackground(Object obj, const cv::Mat& frame);
-	void drawObj(glm::vec3 pos, Object obj);
+	void drawObj(Object obj, glm::mat4 modelMat);
 
 public:
 	Scene();
