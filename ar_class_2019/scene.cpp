@@ -243,7 +243,7 @@ void Scene::preProcess() {
 
 	setupBackground(backPro, cameraBack, frame.cols, frame.rows, true);
 	setupBackground(backPro, imgBack, img1.cols, img1.rows);
-	setupObject(objPro, unityChan, "sd_unitychan.obj", 0.01f);
+	setupObject(objPro, unityChan, "sd_unitychan.obj", 0.005f);
 	setupObject(objPro, gunbot, "Gun_Bot.obj", 0.5f, true);
 	setupObject(objPro, spaceship, "spaceship.obj", 0.5f);
 }
@@ -287,13 +287,16 @@ void Scene::draw(GLFWwindow * window) {
 	glClearColor(0.5, 0.5, 0.5, 0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	// 
-	drawBackground(imgBack, img1);
-	//drawBackground(cameraBack, frame);
 
-	drawObj(markerpos, unityChan);
-	drawObj(markerpos, spaceship);
-	drawObj(markerpos, gunbot);
+	//drawBackground(imgBack, img1);
+	drawBackground(cameraBack, frame);
+
+	glm::mat4 offset =
+		glm::translate(glm::rotate(glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f)), glm::vec3(0, -0.5, 0));
+	//drawObj(unityChan, markerMat * offset);
+	//drawObj(spaceship, markerMat);
+	drawObj(gunbot, markerMat * offset);
+
 
 	glfwSwapBuffers(window);
 	glfwPollEvents();
@@ -319,11 +322,11 @@ void Scene::drawBackground(Object obj, const cv::Mat & frame) {
 	glDrawElements(GL_TRIANGLES, obj.parts[0].elemCount, GL_UNSIGNED_INT, 0);
 }
 
-void Scene::drawObj(glm::vec3 pos, Object obj) {
+void Scene::drawObj(Object obj, glm::mat4 modelMat) {
 	glEnable(GL_DEPTH_TEST);
 
 	objPro->enable();
-	glm::mat4 modelMat = glm::translate(glm::identity<glm::mat4>(), pos);
+	//glm::mat4 modelMat = glm::translate(glm::identity<glm::mat4>(), pos);
 	glm::mat4 viewMat = glm::lookAt(glm::vec3(0, 0, 0), glm::vec3(0, 0, -1), glm::vec3(0, 1, 0));
 	glm::mat4 projMat = glm::perspective(glm::radians(60.0f), 16.0f / 9, 0.1f, 10.0f);
 	objPro->setUniform("mvp", projMat * viewMat * modelMat);
