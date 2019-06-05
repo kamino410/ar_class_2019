@@ -1,0 +1,117 @@
+# Blender MTL File: 'Gun_Bot_Animation_Bake.blend'
+# Material Count: 9
+
+newmtl Grass
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.640000 0.640000 0.640000
+s 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 0.281046
+illum 2
+map_Kd GB_C.jpg
+
+newmtl Spder_bot
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.640000 0.640000 0.640000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 1
+map_Kd GB_C.jpg
+map_Bump textures\\GB_N.jpg
+map_Ks textures\\GB_C.jpg
+
+newmtl Spder_bot_Black
+Ns 749.999996
+Ka 1.000000 1.000000 1.000000
+Kd 0.213915 0.213915 0.213915
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd GB_C.jpg
+map_Bump textures\\GB_N.jpg
+map_Ks textures\\GB_C.jpg
+
+newmtl Spder_bot_Black_GB_C.jpg
+Ns 749.999996
+Ka 1.000000 1.000000 1.000000
+Kd 0.213915 0.213915 0.213915
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd GB_C.jpg
+map_Bump textures\\GB_N.jpg
+map_Ks textures\\GB_C.jpg
+
+newmtl Spder_bot_Black_GB_N.jpg
+Ns 749.999996
+Ka 1.000000 1.000000 1.000000
+Kd 0.213915 0.213915 0.213915
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd GB_C.jpg
+map_Bump textures\\GB_N.jpg
+map_Ks textures\\GB_C.jpg
+
+newmtl Spder_bot_Black_NONE
+Ns 749.999996
+Ka 1.000000 1.000000 1.000000
+Kd 0.213915 0.213915 0.213915
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Bump textures\\GB_N.jpg
+map_Kd GB_C.jpg
+map_Ks textures\\GB_C.jpg
+
+newmtl Spder_bot_GB_C.jpg
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.640000 0.640000 0.640000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 1
+map_Kd GB_C.jpg
+map_Bump textures\\GB_N.jpg
+map_Ks textures\\GB_C.jpg
+
+newmtl Spder_bot_GB_N.jpg
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.640000 0.640000 0.640000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 1
+map_Kd GB_C.jpg
+map_Bump textures\\GB_N.jpg
+map_Ks GB_C.jpg
+
+newmtl Spder_bot_NONE
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.640000 0.640000 0.640000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 1
+map_Bump textures\\GB_N.jpg
+map_Kd GB_C.jpg
+map_Ks textures\\GB_C.jpg

@@ -8,25 +8,25 @@
 #include "MarkerTracker.h"
 
 
-#define WIDTH 960
+#define WIDTH 1920
 #define HEIGHT WIDTH*9/16
 #define HEIGHT_CROP_RATIO 2.0/16
 #define kMarkerSize  0.3// = 0.048[m]
 #define xscale 1.3
 #define yscale 1.3
 
-void setupBackground(GLSLProgramWrapper*& pro, Object& obj, int width, int height) {
+void setupBackground(GLSLProgramWrapper*& pro, Object& obj, int width, int height, bool cropped = false) {
 	float verts[3 * 4];
-	verts[0] = -1.0f, verts[1] = -1.0f, verts[2] = 0.0f;
-	verts[3] = 1.0f, verts[4] = -1.0f, verts[5] = 0.0f;
-	verts[6] = 1.0f, verts[7] = 1.0f, verts[8] = 0.0f;
-	verts[9] = -1.0f, verts[10] = 1.0f, verts[11] = 0.0f;
+	verts[0] = -1.0f, verts[1] = -1.0f, verts[2] = 0.99f;
+	verts[3] = 1.0f, verts[4] = -1.0f, verts[5] = 0.99f;
+	verts[6] = 1.0f, verts[7] = 1.0f, verts[8] = 0.99f;
+	verts[9] = -1.0f, verts[10] = 1.0f, verts[11] = 0.99f;
 
 	float texs[2 * 4];
-	texs[0] = 1.0f, texs[1] = 1.0f - HEIGHT_CROP_RATIO;
-	texs[2] = 0.0f, texs[3] = 1.0f - HEIGHT_CROP_RATIO;
-	texs[4] = 0.0f, texs[5] = HEIGHT_CROP_RATIO;
-	texs[6] = 1.0f, texs[7] = HEIGHT_CROP_RATIO;
+	texs[0] = 1.0f, texs[1] = 1.0f - (cropped ? HEIGHT_CROP_RATIO : 0);
+	texs[2] = 0.0f, texs[3] = 1.0f - (cropped ? HEIGHT_CROP_RATIO : 0);
+	texs[4] = 0.0f, texs[5] = (cropped ? HEIGHT_CROP_RATIO : 0);
+	texs[6] = 1.0f, texs[7] = (cropped ? HEIGHT_CROP_RATIO : 0);
 
 	unsigned int indexes[3 * 2];
 	indexes[0] = 0, indexes[1] = 1, indexes[2] = 2;
@@ -79,7 +79,7 @@ void setupBackground(GLSLProgramWrapper*& pro, Object& obj, int width, int heigh
 	}
 }
 
-void setupObject(GLSLProgramWrapper*& pro, Object& obj, std::string objfile, float scale) {
+void setupObject(GLSLProgramWrapper*& pro, Object& obj, std::string objfile, float scale, bool ignoreMultiTexture = false) {
 	std::string warn, err;
 	bool res = tinyobj::LoadObj(&obj.attr, &obj.shapes, &obj.materials, &warn, &err, objfile.c_str());
 	if (!warn.empty()) {
@@ -106,16 +106,18 @@ void setupObject(GLSLProgramWrapper*& pro, Object& obj, std::string objfile, flo
 			continue;
 		}
 
-		bool flag = false;
-		for (size_t i = 1; i < shape.mesh.material_ids.size(); i++) {
-			if (shape.mesh.material_ids[0] != shape.mesh.material_ids[i]) {
-				std::cout << " : skip (material not uniformed)" << std::endl;
-				flag = true;
-				break;
+		if (!ignoreMultiTexture) {
+			bool flag = false;
+			for (size_t i = 1; i < shape.mesh.material_ids.size(); i++) {
+				if (shape.mesh.material_ids[0] != shape.mesh.material_ids[i]) {
+					std::cout << " : skip (material not uniformed)" << std::endl;
+					flag = true;
+					break;
+				}
 			}
-		}
-		if (flag) {
-			continue;
+			if (flag) {
+				continue;
+			}
 		}
 
 		std::cout << " " << obj.materials[shape.mesh.material_ids[0]].diffuse_texname << std::endl;
@@ -180,7 +182,7 @@ void setupObject(GLSLProgramWrapper*& pro, Object& obj, std::string objfile, flo
 	std::cout << "  Loading textures ..." << std::endl;
 	for (const auto& mat : obj.materials) {
 		std::cout << "  " << mat.diffuse_texname << std::endl;
-		cv::Mat img = cv::imread(mat.diffuse_texname);
+		cv::Mat img = cv::imread(mat.diffuse_texname, cv::IMREAD_COLOR);
 		cv::cvtColor(img, img, cv::COLOR_BGR2RGB);
 		cv::flip(img, img, 0);
 
@@ -234,8 +236,16 @@ void Scene::preProcess() {
 	}
 	std::cout << "Camera Resolution : " << frame.cols << " x " << frame.rows << std::endl;
 
-	setupBackground(backPro, backObj, frame.cols, frame.rows);
+	img1 = cv::imread("img1.png"); cv::flip(img1, img1, 1);
+	img2 = cv::imread("img2.png"); cv::flip(img2, img2, 1);
+	img3 = cv::imread("img3.png"); cv::flip(img3, img3, 1);
+	img4 = cv::imread("img4.png"); cv::flip(img4, img4, 1);
+
+	setupBackground(backPro, cameraBack, frame.cols, frame.rows, true);
+	setupBackground(backPro, imgBack, img1.cols, img1.rows);
 	setupObject(objPro, unityChan, "sd_unitychan.obj", 0.01f);
+	setupObject(objPro, gunbot, "Gun_Bot.obj", 0.5f, true);
+	setupObject(objPro, spaceship, "spaceship.obj", 0.5f);
 }
 
 void Scene::draw(GLFWwindow * window) {
@@ -251,43 +261,48 @@ void Scene::draw(GLFWwindow * window) {
 	glm::vec3 markerpos(0, -0.5, -1.5);
 	glm::mat4 markerMat(1.0);
 	std::vector<Marker> markers;
-	markerTracker.findMarker( frame, markers );
-	for(int i=0; i<markers.size(); i++){
-		const int code =markers[i].code;
-		for (int x=0; x<4; ++x){
-	  		for (int y=0; y<4; ++y){
-				markerMat[x][y] = markers[i].resultMatrix[y*4+x];
-	  		}
+	markerTracker.findMarker(frame, markers);
+	for (int i = 0; i < markers.size(); i++) {
+		const int code = markers[i].code;
+		for (int x = 0; x < 4; ++x) {
+			for (int y = 0; y < 4; ++y) {
+				markerMat[x][y] = markers[i].resultMatrix[y * 4 + x];
+			}
 		}
 		// scaling
-		markerMat[3][0] = xscale * markerMat[3][0] ;
-		markerMat[3][1] = yscale * markerMat[3][1] ;
-	  	// x-axis inversion
-	  	for (int x=0; x<4; ++x){
+		markerMat[3][0] = xscale * markerMat[3][0];
+		markerMat[3][1] = yscale * markerMat[3][1];
+		// x-axis inversion
+		for (int x = 0; x < 4; ++x) {
 			markerMat[x][0] = -markerMat[x][0];
-	  	}
+		}
 
 		markerpos = glm::vec3(markerMat[3][0], markerMat[3][1], markerMat[3][2]);
 	}
 
-    // fin image processing
+	// fin image processing
 
 
 	glViewport(0, 0, WIDTH, HEIGHT);
 	glClearColor(0.5, 0.5, 0.5, 0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	drawBackground(frame);
-	drawUnityChan(markerpos);
+	// 
+	drawBackground(imgBack, img1);
+	//drawBackground(cameraBack, frame);
+
+	drawObj(markerpos, unityChan);
+	drawObj(markerpos, spaceship);
+	drawObj(markerpos, gunbot);
 
 	glfwSwapBuffers(window);
 	glfwPollEvents();
 }
 
-void Scene::drawBackground(const cv::Mat & frame) {
+void Scene::drawBackground(Object obj, const cv::Mat & frame) {
 	glDisable(GL_DEPTH_TEST);
 
-	glBindTexture(GL_TEXTURE_RECTANGLE, backObj.tbos[0]);
+	glBindTexture(GL_TEXTURE_RECTANGLE, obj.tbos[0]);
 	glTexSubImage2D(GL_TEXTURE_RECTANGLE, 0, 0, 0, frame.cols, frame.rows, GL_BGR, GL_UNSIGNED_BYTE, frame.data);
 
 	backPro->enable();
@@ -297,14 +312,14 @@ void Scene::drawBackground(const cv::Mat & frame) {
 
 	backPro->setUniform("TexImg", 0);
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_RECTANGLE, backObj.tbos[0]);
+	glBindTexture(GL_TEXTURE_RECTANGLE, obj.tbos[0]);
 
-	glBindVertexArray(backObj.parts[0].vao);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, backObj.parts[0].eao);
-	glDrawElements(GL_TRIANGLES, backObj.parts[0].elemCount, GL_UNSIGNED_INT, 0);
+	glBindVertexArray(obj.parts[0].vao);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, obj.parts[0].eao);
+	glDrawElements(GL_TRIANGLES, obj.parts[0].elemCount, GL_UNSIGNED_INT, 0);
 }
 
-void Scene::drawUnityChan(glm::vec3 pos) {
+void Scene::drawObj(glm::vec3 pos, Object obj) {
 	glEnable(GL_DEPTH_TEST);
 
 	objPro->enable();
@@ -316,12 +331,9 @@ void Scene::drawUnityChan(glm::vec3 pos) {
 	objPro->setUniform("TexImg", 1);
 	glActiveTexture(GL_TEXTURE1);
 
-	for (auto& part : unityChan.parts) {
-		glBindTexture(GL_TEXTURE_2D, unityChan.tbos[part.tex_id]);
+	for (auto& part : obj.parts) {
+		glBindTexture(GL_TEXTURE_2D, obj.tbos[part.tex_id]);
 
-		//glBindVertexArray(backObj.vao);
-		//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, backObj.eao);
-		//glDrawElements(GL_TRIANGLES, backObj.elemCount, GL_UNSIGNED_INT, 0);
 		glBindVertexArray(part.vao);
 		glDrawArrays(GL_TRIANGLES, 0, part.elemCount);
 	}
