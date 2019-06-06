@@ -24,7 +24,14 @@ struct Object {
 	std::vector<tinyobj::material_t> materials;
 	std::vector<GLuint> tbos;
 	std::vector<Part> parts;
+	glm::mat4 modelMat;
+	int hp;
 };
+
+struct Bullet {
+	glm::vec3 pos, dir;
+};
+
 
 class Scene {
 	GLSLProgramWrapper* backPro, * objPro;
