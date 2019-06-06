@@ -28,12 +28,13 @@ struct Object {
 
 class Scene {
 	GLSLProgramWrapper* backPro, * objPro;
-	Object cameraBack, imgBack, unityChan, gunbot, spaceship;
+	Object cameraBack, imgBack, unityChan, gunbot, spaceship, ball;
 	cv::VideoCapture cap;
 	cv::Mat frame, img1, img2, img3, img4;
 
 	void drawBackground(Object obj, const cv::Mat& frame);
 	void drawObj(Object obj, glm::mat4 modelMat);
+	void drawBallObj(glm::vec3 pos);
 
 public:
 	Scene();
