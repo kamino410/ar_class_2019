@@ -246,6 +246,7 @@ void Scene::preProcess() {
 	setupObject(objPro, unityChan, "sd_unitychan.obj", 0.005f);
 	setupObject(objPro, gunbot, "Gun_Bot.obj", 0.5f, true);
 	setupObject(objPro, spaceship, "spaceship.obj", 0.5f);
+	setupObject(objPro, ball, "ball.obj", 0.05f);
 }
 
 void Scene::draw(GLFWwindow * window) {
@@ -295,8 +296,8 @@ void Scene::draw(GLFWwindow * window) {
 		glm::translate(glm::rotate(glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f)), glm::vec3(0, -0.5, 0));
 	//drawObj(unityChan, markerMat * offset);
 	//drawObj(spaceship, markerMat);
-	drawObj(gunbot, markerMat * offset);
-
+	//drawObj(gunbot, markerMat * offset);
+	drawBallObj(glm::vec3(0, 0, -1.0f));
 
 	glfwSwapBuffers(window);
 	glfwPollEvents();
@@ -336,6 +337,26 @@ void Scene::drawObj(Object obj, glm::mat4 modelMat) {
 
 	for (auto& part : obj.parts) {
 		glBindTexture(GL_TEXTURE_2D, obj.tbos[part.tex_id]);
+
+		glBindVertexArray(part.vao);
+		glDrawArrays(GL_TRIANGLES, 0, part.elemCount);
+	}
+}
+
+void Scene::drawBallObj(glm::vec3 pos) {
+	glEnable(GL_DEPTH_TEST);
+
+	objPro->enable();
+	glm::mat4 modelMat = glm::translate(glm::identity<glm::mat4>(), pos);
+	glm::mat4 viewMat = glm::lookAt(glm::vec3(0, 0, 0), glm::vec3(0, 0, -1), glm::vec3(0, 1, 0));
+	glm::mat4 projMat = glm::perspective(glm::radians(60.0f), 16.0f / 9, 0.1f, 10.0f);
+	objPro->setUniform("mvp", projMat * viewMat * modelMat);
+
+	objPro->setUniform("TexImg", 1);
+	glActiveTexture(GL_TEXTURE1);
+
+	for (auto& part : ball.parts) {
+		glBindTexture(GL_TEXTURE_2D, ball.tbos[part.tex_id]);
 
 		glBindVertexArray(part.vao);
 		glDrawArrays(GL_TRIANGLES, 0, part.elemCount);
