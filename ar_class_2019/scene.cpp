@@ -210,42 +210,53 @@ int Scene::getheight() { return HEIGHT; }
 
 int Scene::getwidth() { return WIDTH; }
 
-void Scene::keycallback(GLFWwindow * window, int key, int scancode, int action,
+enum Mode {
+	Start, Versus, Battle, Result1, Result2
+};
+Mode mode;
+
+void Scene::keycallback(GLFWwindow* window, int key, int scancode, int action,
 	int mods) {
 	if (action == GLFW_PRESS || action == GLFW_REPEAT) {
 		if (key == GLFW_KEY_ESCAPE) {
 			glfwSetWindowShouldClose(window, GL_TRUE);
 		}
+		if (key == GLFW_KEY_ENTER) {
+			mode = Versus;
+		}
+		if (key == GLFW_KEY_B) {
+			mode = Battle;
+		}
 	}
-    if (action == GLFW_PRESS) {
-    	if (key==GLFW_KEY_Z) {
-    		Bullet bullet;
-    		glm::mat4 lpMat = spaceship.modelMat;
-    		glm::mat3 r;
-    		for (int x = 0; x < 3; ++x) {
-			    for (int y = 0; y < 3; ++y) {
-				    r[x][y] = lpMat[x][y];
-			    }
-		    }
-    		bullet.pos = glm::vec3(lpMat[3][0], lpMat[3][1], lpMat[3][2]);
-    		bullet.dir = r * glm::vec3(0.0f, 0.0f, 0.1f);
-    		lpbullets.push_back(bullet);
-    	}
-    	if (key==GLFW_KEY_SLASH) {
-    		printf("2");
-    		Bullet bullet;
-    		glm::mat4 rpMat = gunbot.modelMat;
-    		glm::mat3 r;
-    		for (int x = 0; x < 3; ++x) {
-			    for (int y = 0; y < 3; ++y) {
-				    r[x][y] = rpMat[x][y];
-			    }
-		    }
-    		bullet.pos = glm::vec3(rpMat[3][0], rpMat[3][1], rpMat[3][2]);
-    		bullet.dir = r * glm::vec3(0.0f, 0.0f, 0.1f);
-    		rpbullets.push_back(bullet);
-    	}
-    }
+	if (action == GLFW_PRESS) {
+		if (key == GLFW_KEY_Z) {
+			Bullet bullet;
+			glm::mat4 lpMat = spaceship.modelMat;
+			glm::mat3 r;
+			for (int x = 0; x < 3; ++x) {
+				for (int y = 0; y < 3; ++y) {
+					r[x][y] = lpMat[x][y];
+				}
+			}
+			bullet.pos = glm::vec3(lpMat[3][0], lpMat[3][1], lpMat[3][2]);
+			bullet.dir = r * glm::vec3(0.0f, 0.0f, 0.1f);
+			lpbullets.push_back(bullet);
+		}
+		if (key == GLFW_KEY_SLASH) {
+			printf("2");
+			Bullet bullet;
+			glm::mat4 rpMat = gunbot.modelMat;
+			glm::mat3 r;
+			for (int x = 0; x < 3; ++x) {
+				for (int y = 0; y < 3; ++y) {
+					r[x][y] = rpMat[x][y];
+				}
+			}
+			bullet.pos = glm::vec3(rpMat[3][0], rpMat[3][1], rpMat[3][2]);
+			bullet.dir = r * glm::vec3(0.0f, 0.0f, 0.1f);
+			rpbullets.push_back(bullet);
+		}
+	}
 }
 
 void Scene::setupProgram() {
@@ -281,12 +292,26 @@ void Scene::preProcess() {
 	setupObject(objPro, ball, "ball.obj", 0.05f);
 }
 
-void Scene::draw(GLFWwindow * window) {
+void Scene::draw(GLFWwindow* window) {
+	if (mode == Start) {
+		drawBackground(imgBack, img1);
+	}
+	else if (mode == Versus) {
+		glViewport(0, 0, WIDTH, HEIGHT);
+		glClearColor(0.5, 0.5, 0.5, 0);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		drawBackground(imgBack, img2);
+		glm::mat4 spaceship_vs = glm::translate(glm::rotate(glm::radians(60.0f), glm::vec3(0.0f, 1.0f, 0.0f)), glm::vec3(1.0f, 0.2f, -1.0f));
+		glm::mat4 gunbot_vs = glm::translate(glm::rotate(glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f)), glm::vec3(0.5f, -0.15f, -1.0f));
+		drawObj(spaceship, spaceship_vs);
+		drawObj(gunbot, gunbot_vs);
+	}
+	else if (mode == Battle) {
+
 	if (cap.read(frame)) {
 		cv::imshow("Test", frame);
 		cv::waitKey(1);
 	}
-
 	// start image processing
 	MarkerTracker markerTracker(kMarkerSize);
 	glm::vec3 markerpos(0, -0.5, -1.5);
@@ -307,10 +332,11 @@ void Scene::draw(GLFWwindow * window) {
 		for (int x = 0; x < 4; ++x) {
 			markerMat[x][0] = -markerMat[x][0];
 		}
-		if(code == 0x005a) {
+		if (code == 0x005a) {
 			glm::mat4 rotmat = glm::rotate(glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-            gunbot.modelMat = markerMat * rotmat;
-		}else if(code == 0x0690){
+			gunbot.modelMat = markerMat * rotmat;
+		}
+		else if (code == 0x0690) {
 			glm::mat4 rotmat = glm::rotate(glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 			spaceship.modelMat = markerMat * rotmat;
 		}
@@ -325,32 +351,32 @@ void Scene::draw(GLFWwindow * window) {
 	//drawBackground(imgBack, img1);
 	drawBackground(cameraBack, frame);
 
-    // start bullet
-    glm::vec3 rppos(gunbot.modelMat[3][0], gunbot.modelMat[3][1], gunbot.modelMat[3][2]);
+	// start bullet
+	glm::vec3 rppos(gunbot.modelMat[3][0], gunbot.modelMat[3][1], gunbot.modelMat[3][2]);
 	glm::vec3 lppos(spaceship.modelMat[3][0], spaceship.modelMat[3][1], spaceship.modelMat[3][2]);
-	Bullet *bullet;
+	Bullet * bullet;
 	glm::vec3 d;
 	float dist;
-	for (int i = 0; i< rpbullets.size(); i++){
+	for (int i = 0; i < rpbullets.size(); i++) {
 		bullet = &rpbullets[i];
 		// update pos
 		bullet->pos += bullet->dir;
 
 		// judge and remove
 		d = lppos - bullet->pos;
-		dist = d[0]*d[0] + d[1]*d[1] + d[2]*d[2];
-		if(dist < 0.1){
+		dist = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
+		if (dist < 0.1) {
 			printf("hit");
-			spaceship.hp -= 1;
-			rpbullets.erase(rpbullets.begin()+i);
+			spaceship.hp -= 5;
+			rpbullets.erase(rpbullets.begin() + i);
 		}
-		if(dist>100){
-			rpbullets.erase(rpbullets.begin()+i);
+		if (dist > 100) {
+			rpbullets.erase(rpbullets.begin() + i);
 		}
 		drawBallObj(bullet->pos);
-    }
+	}
 
-	for (int i = 0; i< lpbullets.size(); i++){
+	for (int i = 0; i < lpbullets.size(); i++) {
 		printf("%d", lpbullets.size());
 		bullet = &lpbullets[i];
 		// update pos
@@ -358,33 +384,32 @@ void Scene::draw(GLFWwindow * window) {
 
 		// judge and remove
 		d = rppos - bullet->pos;
-		dist = d[0]*d[0] + d[1]*d[1] + d[2]*d[2];
+		dist = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
 
 		glm::vec3 d = rppos - bullet->pos;
-		float dist = d[0]*d[0] + d[1]*d[1] + d[2]*d[2];
-		if(dist < 0.1){
+		float dist = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
+		if (dist < 0.1) {
 			printf("hit");
-			spaceship.hp -= 10;
-			lpbullets.erase(lpbullets.begin()+i);
+			gunbot.hp -= 20;
+			lpbullets.erase(lpbullets.begin() + i);
 		}
-		if(dist>100){
-			lpbullets.erase(lpbullets.begin()+i);
+		if (dist > 100) {
+			lpbullets.erase(lpbullets.begin() + i);
 		}
 		drawBallObj(bullet->pos);
-    }
+	}
 
-    // TODO
-    // change game view
-    if (spaceship.hp < 0){
-    	//left player win
-    	printf("left player win");
-    }
-    if (gunbot.hp < 0){
-    	//right player win
-    	printf("right player win");
-    }
-
-
+	// TODO
+	// change game view
+	if (spaceship.hp < 0) {
+		//left player win
+		printf("Right player win");
+		mode = Result2;
+	}else if (gunbot.hp < 0) {
+		//right player win
+		printf("Left player win");
+		mode = Result1;
+	}
 
 	glm::mat4 offset =
 		glm::translate(glm::rotate(glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f)), glm::vec3(0, -0.5, 0));
@@ -392,6 +417,24 @@ void Scene::draw(GLFWwindow * window) {
 	drawObj(spaceship, spaceship.modelMat);
 	drawObj(gunbot, gunbot.modelMat);
 	//drawBallObj(glm::vec3(0, 0, -1.0f));
+
+	}
+	else if (mode == Result1) {
+	glViewport(0, 0, WIDTH, HEIGHT);
+	glClearColor(0.5, 0.5, 0.5, 0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	drawBackground(imgBack, img3);
+	glm::mat4 spaceship_vs = glm::translate(glm::rotate(glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f)), glm::vec3(0.0f, 0.05f, -1.0f));
+	drawObj(spaceship, spaceship_vs);
+	}
+	else if (mode == Result2) {
+	glViewport(0, 0, WIDTH, HEIGHT);
+	glClearColor(0.5, 0.5, 0.5, 0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	drawBackground(imgBack, img4);
+	glm::mat4 gunbot_vs = glm::translate(glm::rotate(glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f)), glm::vec3(0.0f, -0.15f, -1.0f));
+	drawObj(gunbot, gunbot_vs);
+	}
 
 	glfwSwapBuffers(window);
 	glfwPollEvents();
