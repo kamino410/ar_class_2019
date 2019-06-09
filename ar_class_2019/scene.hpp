@@ -38,6 +38,7 @@ class Scene {
 	Object cameraBack, imgBack, unityChan, gunbot, spaceship, ball;
 	cv::VideoCapture cap;
 	cv::Mat frame, img1, img2, img3, img4;
+	float stagerot = 0;
 
 	void drawBackground(Object obj, const cv::Mat& frame);
 	void drawObj(Object obj, glm::mat4 modelMat);
